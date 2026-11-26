@@ -9,6 +9,7 @@ import com.nestscout.a2ui.contract.catalog.FilterRefineSheetV2Props
 import com.nestscout.a2ui.contract.catalog.VisitRequestFormV1Props
 import com.nestscout.a2ui.contract.catalog.VisitRequestFormV2Props
 import com.nestscout.a2ui.contract.protocol.A2uiCatalogIds
+import com.nestscout.a2ui.contract.protocol.VisitRequestSubmission
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -114,10 +115,27 @@ object ContractSchemaValidator {
         return if (errors.isEmpty()) ValidationResult.Valid else ValidationResult.Invalid(errors)
     }
 
+    private val isoDateRegex = Regex("^\\d{4}-\\d{2}-\\d{2}\$")
+    private val emailRegex = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+\$")
+
+    fun validateVisitSubmission(submission: VisitRequestSubmission): ValidationResult {
+        val errors = buildList {
+            if (!submission.explicitConfirmed) add("explicitConfirmed must be true before submission")
+            if (submission.propertyId.isBlank()) add("propertyId must not be blank")
+            if (!isoDateRegex.matches(submission.preferredDate)) add("preferredDate must be ISO YYYY-MM-DD")
+            if (submission.visitorName.isBlank()) add("visitorName must not be blank")
+            if (!emailRegex.matches(submission.visitorEmail)) add("visitorEmail must be a valid email address")
+        }
+        return if (errors.isEmpty()) ValidationResult.Valid else ValidationResult.Invalid(errors)
+    }
+
     private fun validateComparisonV2(p: PropertyComparisonTableV2Props): ValidationResult {
         val errors = buildList {
             if (p.items.isEmpty() || p.items.size > 3) add("v2 comparison supports 1 to 3 items")
             if (!p.showOnlyDiffBinding.path.startsWith("/")) add("showOnlyDiffBinding.path must start with '/'")
+            if (p.winnerPropertyId != null && p.items.none { it.propertyId == p.winnerPropertyId }) {
+                add("winnerPropertyId must match one of the compared items")
+            }
             p.items.forEachIndexed { idx, item ->
                 if (item.propertyId.isBlank()) add("items[$idx].propertyId must not be blank")
                 if (item.priceEur <= 0) add("items[$idx].priceEur must be positive")
