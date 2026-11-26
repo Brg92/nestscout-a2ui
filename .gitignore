@@ -1,0 +1,32 @@
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IntelliJ / Android Studio
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+local.properties
+
+# Android
+*.apk
+*.ap_
+*.aab
+*.dex
+captures/
+.cxx/
+.externalNativeBuild/
+
+# Env & Secrets
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+
+# OS
+.DS_Store
+Thumbs.db
