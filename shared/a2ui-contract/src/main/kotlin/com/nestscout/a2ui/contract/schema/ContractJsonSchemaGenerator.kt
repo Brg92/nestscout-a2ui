@@ -172,7 +172,7 @@ object ContractJsonSchemaGenerator {
                     put("notesBinding", bindingRefSchema())
                     put("explicitConfirmedBinding", bindingRefSchema())
                     put("statusBinding", bindingRefSchema())
-                    put("agentNote", stringType())
+                    put("agencyNote", stringType())
                 },
             ),
         )
