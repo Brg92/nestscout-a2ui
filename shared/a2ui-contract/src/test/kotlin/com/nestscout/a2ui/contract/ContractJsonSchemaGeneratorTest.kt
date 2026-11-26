@@ -18,11 +18,19 @@ class ContractJsonSchemaGeneratorTest {
     }
 
     @Test
-    fun `v2 catalog schema contains all 4 v2 components`() {
+    fun `v2 catalog schema contains all 4 v2 components with nested item schemas`() {
         val schema = ContractJsonSchemaGenerator.generateCatalogSchema(A2uiCatalogIds.NESTSCOUT_V2_CATALOG_ID)
         val components = schema["components"]!!.jsonObject
         assertEquals(A2uiCatalogIds.V2.allComponents, components.keys)
         assertTrue(components.containsKey(A2uiCatalogIds.V2.PROPERTY_CARD))
+
+        val comparisonProps = components[A2uiCatalogIds.V2.PROPERTY_COMPARISON_TABLE]!!
+            .jsonObject["properties"]!!.jsonObject
+        assertTrue(comparisonProps["items"]!!.jsonObject.containsKey("items"))
+
+        val visitFormProps = components[A2uiCatalogIds.V2.VISIT_REQUEST_FORM]!!
+            .jsonObject["properties"]!!.jsonObject
+        assertTrue(visitFormProps.containsKey("agencyNote"))
     }
 
     @Test

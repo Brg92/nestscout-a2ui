@@ -9,8 +9,13 @@ import com.nestscout.a2ui.contract.catalog.PropertyComparisonTableV1Props
 import com.nestscout.a2ui.contract.catalog.PropertyComparisonTableV2Props
 import com.nestscout.a2ui.contract.catalog.VisitRequestFormV2Props
 import com.nestscout.a2ui.contract.domain.EnergyClass
+import com.nestscout.a2ui.contract.domain.VisitMode
+import com.nestscout.a2ui.contract.domain.VisitTimeSlot
 import com.nestscout.a2ui.contract.protocol.A2uiCatalogIds
+import com.nestscout.a2ui.contract.protocol.A2uiComponentNode
+import com.nestscout.a2ui.contract.protocol.A2uiWireEvent
 import com.nestscout.a2ui.contract.protocol.ClientCapabilities
+import com.nestscout.a2ui.contract.protocol.VisitRequestSubmission
 import com.nestscout.a2ui.contract.schema.ContractSchemaValidator
 import com.nestscout.a2ui.contract.schema.ValidationResult
 import kotlinx.serialization.json.Json
@@ -163,5 +168,58 @@ class ContractSchemaValidatorTest {
         assertTrue(v2Client.supportsV1())
         assertTrue(v2Client.supportsV2())
         assertEquals(3, v2Client.maxComparisonItems)
+    }
+
+    @Test
+    fun `comparison table v2 rejects winnerPropertyId absent from items`() {
+        val props = PropertyComparisonTableV2Props(
+            items = listOf(
+                ComparisonItemV2("a", "A", 1000, 50, 2, 1, 100, EnergyClass.A2, 4),
+            ),
+            showOnlyDiffBinding = DataBindingPath("/comparison/showOnlyDiff"),
+            winnerPropertyId = "non-existent",
+        )
+        val result = ContractSchemaValidator.validateComponent(
+            A2uiCatalogIds.V2.PROPERTY_COMPARISON_TABLE,
+            json.encodeToJsonElement(props).jsonObject,
+        )
+        assertIs<ValidationResult.Invalid>(result)
+        assertTrue(result.errors.any { it.contains("winnerPropertyId") })
+    }
+
+    @Test
+    fun `validateVisitSubmission requires explicit confirmation and valid fields`() {
+        val valid = VisitRequestSubmission(
+            propertyId = "apt-01",
+            preferredDate = "2026-12-10",
+            timeSlot = VisitTimeSlot.MORNING,
+            visitMode = VisitMode.IN_PERSON,
+            visitorName = "Mario Rossi",
+            visitorEmail = "mario.rossi@example.com",
+            explicitConfirmed = true,
+        )
+        assertIs<ValidationResult.Valid>(ContractSchemaValidator.validateVisitSubmission(valid))
+
+        val unconfirmed = valid.copy(explicitConfirmed = false, visitorEmail = "invalid")
+        val invalidResult = ContractSchemaValidator.validateVisitSubmission(unconfirmed)
+        assertIs<ValidationResult.Invalid>(invalidResult)
+        assertTrue(invalidResult.errors.any { it.contains("explicitConfirmed") })
+        assertTrue(invalidResult.errors.any { it.contains("visitorEmail") })
+    }
+
+    @Test
+    fun `A2uiWireEvent roundtrip serialization works for SSE frames`() {
+        val event: A2uiWireEvent = A2uiWireEvent.UpdateComponents(
+            surfaceId = "search-results",
+            components = listOf(
+                A2uiComponentNode(
+                    id = "root",
+                    component = mapOf("Column" to buildJsonObject { }),
+                ),
+            ),
+        )
+        val encoded = json.encodeToString(A2uiWireEvent.serializer(), event)
+        val decoded = json.decodeFromString(A2uiWireEvent.serializer(), encoded)
+        assertEquals(event, decoded)
     }
 }
