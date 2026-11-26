@@ -142,5 +142,5 @@ data class VisitRequestFormV2Props(
     val notesBinding: DataBindingPath,
     val explicitConfirmedBinding: DataBindingPath,
     val statusBinding: DataBindingPath,
-    val agentNote: String? = null,
+    val agencyNote: String? = null,
 )

@@ -53,7 +53,15 @@ object ContractJsonSchemaGenerator {
             componentSchema(
                 required = listOf("items"),
                 properties = buildJsonObject {
-                    put("items", buildJsonObject { put("type", "array"); put("minItems", 1); put("maxItems", 2) })
+                    put(
+                        "items",
+                        buildJsonObject {
+                            put("type", "array")
+                            put("minItems", 1)
+                            put("maxItems", 2)
+                            put("items", comparisonItemV1Schema())
+                        },
+                    )
                 },
             ),
         )
@@ -114,7 +122,7 @@ object ContractJsonSchemaGenerator {
                     put("highlights", buildJsonObject { put("type", "array"); put("maxItems", 3) })
                     put("isFavoriteBinding", bindingRefSchema())
                     put("isSkeleton", boolType())
-                    put("subcomponentLoading", buildJsonObject { put("type", "object") })
+                    put("subcomponentLoading", subcomponentLoadingSchema())
                 },
             ),
         )
@@ -123,7 +131,15 @@ object ContractJsonSchemaGenerator {
             componentSchema(
                 required = listOf("items", "showOnlyDiffBinding"),
                 properties = buildJsonObject {
-                    put("items", buildJsonObject { put("type", "array"); put("minItems", 1); put("maxItems", 3) })
+                    put(
+                        "items",
+                        buildJsonObject {
+                            put("type", "array")
+                            put("minItems", 1)
+                            put("maxItems", 3)
+                            put("items", comparisonItemV2Schema())
+                        },
+                    )
                     put("highlightBestValue", boolType())
                     put("showOnlyDiffBinding", bindingRefSchema())
                     put("winnerPropertyId", stringType())
@@ -172,7 +188,7 @@ object ContractJsonSchemaGenerator {
                     put("notesBinding", bindingRefSchema())
                     put("explicitConfirmedBinding", bindingRefSchema())
                     put("statusBinding", bindingRefSchema())
-                    put("agentNote", stringType())
+                    put("agencyNote", stringType())
                 },
             ),
         )
@@ -195,4 +211,44 @@ object ContractJsonSchemaGenerator {
         put("properties", buildJsonObject { put("path", stringType()) })
         put("additionalProperties", false)
     }
+
+    private fun subcomponentLoadingSchema(): JsonObject = componentSchema(
+        required = emptyList(),
+        properties = buildJsonObject {
+            put("image", boolType())
+            put("price", boolType())
+            put("matchScore", boolType())
+        },
+    )
+
+    private fun comparisonItemV1Schema(): JsonObject = componentSchema(
+        required = listOf("propertyId", "title", "priceEur", "sqm", "rooms", "floor", "condoFeesEur"),
+        properties = buildJsonObject {
+            put("propertyId", stringType())
+            put("title", stringType())
+            put("priceEur", positiveIntType())
+            put("sqm", positiveIntType())
+            put("rooms", positiveIntType())
+            put("floor", buildJsonObject { put("type", "integer") })
+            put("condoFeesEur", buildJsonObject { put("type", "integer"); put("minimum", 0) })
+        },
+    )
+
+    private fun comparisonItemV2Schema(): JsonObject = componentSchema(
+        required = listOf(
+            "propertyId", "title", "priceEur", "sqm", "rooms",
+            "floor", "condoFeesEur", "energyClass", "transitMinutes",
+        ),
+        properties = buildJsonObject {
+            put("propertyId", stringType())
+            put("title", stringType())
+            put("priceEur", positiveIntType())
+            put("sqm", positiveIntType())
+            put("rooms", positiveIntType())
+            put("floor", buildJsonObject { put("type", "integer") })
+            put("condoFeesEur", buildJsonObject { put("type", "integer"); put("minimum", 0) })
+            put("energyClass", stringType())
+            put("transitMinutes", buildJsonObject { put("type", "integer"); put("minimum", 0) })
+        },
+    )
 }
