@@ -23,3 +23,4 @@ dependencyResolutionManagement {
 rootProject.name = "nestscout-a2ui"
 
 include(":shared:a2ui-contract")
+include(":server")
