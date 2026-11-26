@@ -1,6 +1,17 @@
 package com.nestscout.a2ui.server
 
+import com.nestscout.a2ui.server.config.ServerConfig
+import com.nestscout.a2ui.server.error.SelfCorrectionService
+import com.nestscout.a2ui.server.grounding.GroundingHydrator
+import com.nestscout.a2ui.server.planner.PlannerUpstreamException
+import com.nestscout.a2ui.server.planner.UiPlanner
+import com.nestscout.a2ui.server.planner.UiPlannerFactory
+import com.nestscout.a2ui.server.repository.PropertyRepository
 import com.nestscout.a2ui.server.routes.configureHealthRoutes
+import com.nestscout.a2ui.server.routes.configureUiRoutes
+import com.nestscout.a2ui.server.security.CapabilityNegotiator
+import com.nestscout.a2ui.server.security.UrlAllowlistSanitizer
+import com.nestscout.a2ui.server.stream.UiStreamOrchestrator
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
@@ -29,16 +40,42 @@ val ServerJson: Json = Json {
 }
 
 fun main() {
-    val port = System.getenv("PORT")?.toIntOrNull() ?: 8080
+    val config = ServerConfig.fromEnv()
     embeddedServer(
         factory = Netty,
-        port = port,
+        port = config.port,
         host = "0.0.0.0",
-        module = Application::module,
+        module = { module(config = config) },
     ).start(wait = true)
 }
 
-fun Application.module() {
+fun Application.module(
+    config: ServerConfig = ServerConfig.fromEnv(),
+    repository: PropertyRepository = PropertyRepository.fromResource(),
+    plannerOverride: UiPlanner? = null,
+) {
+    val urlSanitizer = UrlAllowlistSanitizer(allowedHosts = config.allowedImageHosts)
+    val capabilityNegotiator = CapabilityNegotiator()
+    val groundingHydrator = GroundingHydrator(
+        repository = repository,
+        urlSanitizer = urlSanitizer,
+    )
+    val planner = plannerOverride ?: UiPlannerFactory.create(
+        config = config,
+        repository = repository,
+    )
+    val selfCorrectionService = SelfCorrectionService(
+        repository = repository,
+        hydrator = groundingHydrator,
+    )
+    val streamOrchestrator = UiStreamOrchestrator(
+        repository = repository,
+        capabilityNegotiator = capabilityNegotiator,
+        planner = planner,
+        hydrator = groundingHydrator,
+        selfCorrectionService = selfCorrectionService,
+    )
+
     install(ContentNegotiation) {
         json(ServerJson)
     }
@@ -62,9 +99,22 @@ fun Application.module() {
                 ),
             )
         }
+        exception<PlannerUpstreamException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadGateway,
+                ApiErrorResponse(
+                    error = "UPSTREAM_PLANNER_ERROR",
+                    message = cause.message ?: "Upstream structured planner failure",
+                ),
+            )
+        }
     }
 
     routing {
         configureHealthRoutes()
+        configureUiRoutes(
+            orchestrator = streamOrchestrator,
+            selfCorrectionService = selfCorrectionService,
+        )
     }
 }
